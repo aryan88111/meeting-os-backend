@@ -271,15 +271,15 @@ export class AuthService {
         const orgName = `${name}'s Workspace`;
         const orgSlug = this.generateSlug(orgName);
 
-        await this.prisma.organizationMember.create({
+        await this.prisma.organization.create({
           data: {
-            role: Role.OWNER,
-            userId: user.id,
-            organization: {
+            name: orgName,
+            slug: orgSlug,
+            plan: 'FREE',
+            members: {
               create: {
-                name: orgName,
-                slug: orgSlug,
-                plan: 'FREE',
+                userId: user.id,
+                role: Role.OWNER,
               },
             },
           },
