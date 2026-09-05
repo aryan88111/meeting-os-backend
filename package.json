@@ -6,12 +6,15 @@
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\"",
     "start": "nest start",
-    "dev": "nest start --watch",
+    "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "swagger:generate": "nest build && node dist/generate-swagger.js",
+    "swagger:generate": "npx ts-node src/generate-swagger.ts",
     "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",
-    "prisma:migrate": "prisma migrate dev --schema=./prisma/schema.prisma"
+    "prisma:migrate": "dotenv -e .env -- sh -c 'DATABASE_URL=\"$DIRECT_URL\" PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 prisma migrate dev --schema=./prisma/schema.prisma'",
+    "prisma:migrate:deploy": "dotenv -e .env -- sh -c 'DATABASE_URL=\"$DIRECT_URL\" PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 prisma migrate deploy --schema=./prisma/schema.prisma'",
+    "prisma:migrate:status": "dotenv -e .env -- sh -c 'DATABASE_URL=\"$DIRECT_URL\" PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 prisma migrate status --schema=./prisma/schema.prisma'",
+    "prisma:db:push": "dotenv -e .env -- sh -c 'DATABASE_URL=\"$DIRECT_URL\" prisma db push --schema=./prisma/schema.prisma'"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.10",
@@ -40,7 +43,9 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.5",
     "@types/passport-jwt": "^4.0.1",
+    "dotenv-cli": "^8.0.0",
     "prisma": "^6.4.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
   }
 }
