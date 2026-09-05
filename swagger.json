@@ -1,6 +1,229 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "AuthController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully and default organization created"
+          },
+          "409": {
+            "description": "Email address already registered"
+          }
+        },
+        "summary": "Register a new user with email and password",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication successful, JWT token returned"
+          },
+          "401": {
+            "description": "Invalid email or password"
+          }
+        },
+        "summary": "Sign in with email and password",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/supabase-sync": {
+      "post": {
+        "operationId": "AuthController_syncSupabaseSession",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupabaseSyncDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OAuth session synchronized and JWT token returned"
+          }
+        },
+        "summary": "Synchronize Supabase OAuth session with MeetingOS database",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "AuthController_getMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "User profile retrieved successfully"
+          },
+          "401": {
+            "description": "Unauthorized or token expired"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Retrieve currently authenticated user profile and organizations",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Logout and terminate active session",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/api/v1/integrations/google/auth-url": {
+      "get": {
+        "operationId": "IntegrationsController_getGoogleAuthUrl",
+        "parameters": [
+          {
+            "name": "redirectUri",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate Google Calendar & Meet OAuth 2.0 authorization URL",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/google/callback": {
+      "post": {
+        "operationId": "IntegrationsController_handleGoogleCallback",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleAuthCallbackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Complete Google OAuth 2.0 connection and save tokens",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/google/sync": {
+      "post": {
+        "operationId": "IntegrationsController_syncGoogleCalendar",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Synchronize Google Calendar events and Google Meet links into MeetingOS",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations": {
+      "get": {
+        "operationId": "IntegrationsController_listIntegrations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all connected workspace integrations",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "operationId": "HealthController_check",
@@ -17,9 +240,67 @@
       }
     },
     "/api/v1/meetings": {
+      "post": {
+        "operationId": "MeetingsController_createMeeting",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMeetingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Meeting session created successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Schedule or create a new meeting session",
+        "tags": [
+          "Meetings"
+        ]
+      },
       "get": {
         "operationId": "MeetingsController_listMeetings",
         "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Filter by title, attendee, or description",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter by meeting status",
+            "schema": {
+              "enum": [
+                "CREATED",
+                "WAITING_FOR_TRANSCRIPT",
+                "TRANSCRIPT_RECEIVED",
+                "QUEUED",
+                "PROCESSING",
+                "AI_COMPLETED",
+                "DOCUMENT_GENERATING",
+                "COMPLETED",
+                "FAILED",
+                "FAILED_PERMANENT"
+              ],
+              "type": "string"
+            }
+          },
           {
             "name": "offset",
             "required": false,
@@ -42,6 +323,11 @@
             "description": ""
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "summary": "List meetings for current organization",
         "tags": [
           "Meetings"
@@ -66,7 +352,76 @@
             "description": ""
           }
         },
-        "summary": "Get meeting details by ID",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get full meeting details, transcripts, intelligence, and action items",
+        "tags": [
+          "Meetings"
+        ]
+      },
+      "patch": {
+        "operationId": "MeetingsController_updateMeeting",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMeetingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update meeting details, URL, status, or timestamps",
+        "tags": [
+          "Meetings"
+        ]
+      },
+      "delete": {
+        "operationId": "MeetingsController_deleteMeeting",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a meeting record and cascade related data",
         "tags": [
           "Meetings"
         ]
@@ -281,6 +636,266 @@
         "type": "http"
       }
     },
-    "schemas": {}
+    "schemas": {
+      "RegisterDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "John Doe",
+            "description": "Full name of the user"
+          },
+          "email": {
+            "type": "string",
+            "example": "john@example.com",
+            "description": "Email address"
+          },
+          "password": {
+            "type": "string",
+            "example": "SecureP@ssw0rd",
+            "minLength": 8,
+            "description": "Password (min 8 chars)"
+          },
+          "organizationName": {
+            "type": "string",
+            "example": "Acme Corp",
+            "description": "Optional initial workspace name"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "password"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "john@example.com",
+            "description": "User email address"
+          },
+          "password": {
+            "type": "string",
+            "example": "SecureP@ssw0rd",
+            "description": "User password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "SupabaseSyncDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsIn...",
+            "description": "Supabase OAuth access token"
+          },
+          "email": {
+            "type": "string",
+            "example": "john@gmail.com",
+            "description": "User email from OAuth profile"
+          },
+          "name": {
+            "type": "string",
+            "example": "John Doe",
+            "description": "User full name from OAuth profile"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "example": "https://lh3.googleusercontent.com/...",
+            "description": "Avatar URL"
+          }
+        },
+        "required": [
+          "accessToken"
+        ]
+      },
+      "GoogleAuthCallbackDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "OAuth 2.0 authorization code from Google consent redirect"
+          },
+          "redirectUri": {
+            "type": "string",
+            "description": "Redirect URI used in the initial OAuth request"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "ParticipantDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Sarah Chen",
+            "description": "Participant full name"
+          },
+          "email": {
+            "type": "string",
+            "example": "sarah@example.com",
+            "description": "Participant email address"
+          },
+          "role": {
+            "type": "string",
+            "example": "Lead Architect",
+            "description": "Role or title"
+          },
+          "isExternal": {
+            "type": "boolean",
+            "example": false,
+            "description": "Whether participant is external to organization"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "CreateMeetingDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Q3 Product Architecture & Sprint Kickoff",
+            "description": "Meeting title"
+          },
+          "description": {
+            "type": "string",
+            "example": "Discuss core platform architecture, pgvector indexes, and sprint backlog."
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "GOOGLE_MEET",
+              "MICROSOFT_TEAMS",
+              "ZOOM"
+            ],
+            "default": "MANUAL"
+          },
+          "meetingUrl": {
+            "type": "string",
+            "example": "https://meet.google.com/abc-defg-hij",
+            "description": "Direct meeting join URL"
+          },
+          "startTime": {
+            "type": "string",
+            "example": "2026-09-06T14:30:00.000Z",
+            "description": "Scheduled start timestamp"
+          },
+          "endTime": {
+            "type": "string",
+            "example": "2026-09-06T15:30:00.000Z",
+            "description": "Scheduled end timestamp"
+          },
+          "durationSeconds": {
+            "type": "number",
+            "example": 3600,
+            "description": "Duration in seconds"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "WAITING_FOR_TRANSCRIPT",
+              "TRANSCRIPT_RECEIVED",
+              "QUEUED",
+              "PROCESSING",
+              "AI_COMPLETED",
+              "DOCUMENT_GENERATING",
+              "COMPLETED",
+              "FAILED",
+              "FAILED_PERMANENT"
+            ],
+            "default": "CREATED"
+          },
+          "participants": {
+            "description": "List of meeting participants",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ParticipantDto"
+            }
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "UpdateMeetingDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Q3 Product Architecture & Sprint Kickoff",
+            "description": "Meeting title"
+          },
+          "description": {
+            "type": "string",
+            "example": "Discuss core platform architecture, pgvector indexes, and sprint backlog."
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "GOOGLE_MEET",
+              "MICROSOFT_TEAMS",
+              "ZOOM"
+            ],
+            "default": "MANUAL"
+          },
+          "meetingUrl": {
+            "type": "string",
+            "example": "https://meet.google.com/abc-defg-hij",
+            "description": "Direct meeting join URL"
+          },
+          "startTime": {
+            "type": "string",
+            "example": "2026-09-06T14:30:00.000Z",
+            "description": "Scheduled start timestamp"
+          },
+          "endTime": {
+            "type": "string",
+            "example": "2026-09-06T15:30:00.000Z",
+            "description": "Scheduled end timestamp"
+          },
+          "durationSeconds": {
+            "type": "number",
+            "example": 3600,
+            "description": "Duration in seconds"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "WAITING_FOR_TRANSCRIPT",
+              "TRANSCRIPT_RECEIVED",
+              "QUEUED",
+              "PROCESSING",
+              "AI_COMPLETED",
+              "DOCUMENT_GENERATING",
+              "COMPLETED",
+              "FAILED",
+              "FAILED_PERMANENT"
+            ],
+            "default": "CREATED"
+          },
+          "participants": {
+            "description": "List of meeting participants",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ParticipantDto"
+            }
+          }
+        }
+      }
+    }
   }
 }

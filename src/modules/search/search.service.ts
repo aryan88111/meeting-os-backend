@@ -8,6 +8,7 @@ export class SearchService {
   async searchMeetings(query: string) {
     return this.prisma.meeting.findMany({
       where: {
+        isActive: true,
         OR: [
           { title: { contains: query, mode: 'insensitive' } },
           { description: { contains: query, mode: 'insensitive' } },

@@ -103,6 +103,7 @@ model OrganizationMember {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
   @@unique([organizationId, userId])
   @@map("organization_members")
@@ -112,13 +113,17 @@ model Meeting {
   id                  String               @id @default(uuid())
   organizationId      String               @map("organization_id")
   createdBy           String               @map("created_by")
-  provider            MeetingSource        @default(MANUAL)
-  providerMeetingId   String?              @map("provider_meeting_id")
   title               String
   description         String?
   status              MeetingStatus        @default(CREATED)
-  startedAt           DateTime?            @map("started_at")
-  endedAt             DateTime?            @map("ended_at")
+  source              MeetingSource        @default(MANUAL)
+  provider            MeetingSource?       @default(MANUAL)
+  providerMeetingId   String?              @map("provider_meeting_id")
+  providerEventId     String?              @map("provider_event_id")
+  meetingUrl          String?              @map("meeting_url")
+  startTime           DateTime?            @map("start_time")
+  endTime             DateTime?            @map("end_time")
+  durationSeconds     Int?                 @map("duration_seconds")
   
   organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   creator             User                 @relation("CreatedMeetings", fields: [createdBy], references: [id])
@@ -136,11 +141,15 @@ model Meeting {
   embeddings          Embedding[]
   integrationMeetings IntegrationMeeting[]
 
+  isActive            Boolean              @default(true) @map("is_active")
+  deletedAt           DateTime?            @map("deleted_at")
+
   createdAt           DateTime             @default(now()) @map("created_at")
   updatedAt           DateTime             @updatedAt @map("updated_at")
 
   @@index([organizationId, createdAt])
   @@index([organizationId, status])
+  @@index([organizationId, isActive])
   @@index([provider, providerMeetingId])
   @@map("meetings")
 }
@@ -150,8 +159,8 @@ model Participant {
   meetingId             String   @map("meeting_id")
   name                  String
   email                 String?
-  providerParticipantId String?  @map("provider_participant_id")
   role                  String?
+  isExternal            Boolean  @default(false) @map("is_external")
   meeting               Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   createdAt             DateTime @default(now()) @map("created_at")
 
@@ -263,6 +272,8 @@ model Risk {
   meetingId       String             @map("meeting_id")
   description     String
   severity        String             @default("MEDIUM")
+  mitigation      String?
+  confidence      Float?             @default(1.0)
   sourceSegmentId String?            @map("source_segment_id")
   meeting         Meeting            @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   sourceSegment   TranscriptSegment? @relation(fields: [sourceSegmentId], references: [id], onDelete: SetNull)
@@ -275,8 +286,8 @@ model OpenQuestion {
   id              String             @id @default(uuid())
   meetingId       String             @map("meeting_id")
   question        String
-  owner           String?
-  resolved        Boolean            @default(false)
+  assignedTo      String?            @map("assigned_to")
+  status          String?            @default("OPEN")
   sourceSegmentId String?            @map("source_segment_id")
   meeting         Meeting            @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   sourceSegment   TranscriptSegment? @relation(fields: [sourceSegmentId], references: [id], onDelete: SetNull)
