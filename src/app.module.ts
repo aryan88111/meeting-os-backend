@@ -9,6 +9,7 @@ import { IntelligenceModule } from './modules/intelligence/intelligence.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { SearchModule } from './modules/search/search.module';
 import { QueueModule } from './modules/queue/queue.module';
+import { IntegrationsModule } from './modules/integrations/integrations.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { QueueModule } from './modules/queue/queue.module';
     }),
     PrismaModule,
     AuthModule,
+    IntegrationsModule,
     QueueModule,
     HealthModule,
     MeetingsModule,
