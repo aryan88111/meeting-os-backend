@@ -339,6 +339,6 @@ export class AuthService {
     role?: string;
   }): string {
     const expiresIn = this.configService.get<string>('JWT_EXPIRES_IN', '7d');
-    return this.jwtService.sign(payload, { expiresIn });
+    return this.jwtService.sign(payload, { expiresIn: expiresIn as any });
   }
 }
