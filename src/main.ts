@@ -4,6 +4,12 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { Request, Response } from 'express';
 
+// Global BigInt JSON serialization support
+(BigInt.prototype as any).toJSON = function () {
+  const int = Number.parseInt(this.toString(), 10);
+  return Number.isNaN(int) ? this.toString() : int;
+};
+
 async function bootstrap() {
   const logger = new Logger('MeetingOS-API');
   const app = await NestFactory.create(AppModule);
