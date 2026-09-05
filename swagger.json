@@ -1,0 +1,286 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Health check endpoint",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/api/v1/meetings": {
+      "get": {
+        "operationId": "MeetingsController_listMeetings",
+        "parameters": [
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List meetings for current organization",
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}": {
+      "get": {
+        "operationId": "MeetingsController_getMeeting",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get meeting details by ID",
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/transcript": {
+      "get": {
+        "operationId": "TranscriptsController_getTranscript",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get meeting transcript metadata and content",
+        "tags": [
+          "Transcripts"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/transcript/segments": {
+      "get": {
+        "operationId": "TranscriptsController_getSegments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get ordered transcript segments with speaker attribution",
+        "tags": [
+          "Transcripts"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/intelligence/summary": {
+      "get": {
+        "operationId": "IntelligenceController_getSummary",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get meeting summary",
+        "tags": [
+          "Intelligence"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/intelligence/decisions": {
+      "get": {
+        "operationId": "IntelligenceController_getDecisions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get extracted decisions",
+        "tags": [
+          "Intelligence"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/intelligence/action-items": {
+      "get": {
+        "operationId": "IntelligenceController_getActionItems",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get extracted action items",
+        "tags": [
+          "Intelligence"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/intelligence/risks": {
+      "get": {
+        "operationId": "IntelligenceController_getRisks",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get extracted risks and blockers",
+        "tags": [
+          "Intelligence"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/documents": {
+      "get": {
+        "operationId": "DocumentsController_getDocuments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List generated PDF/DOCX documents for a meeting",
+        "tags": [
+          "Documents"
+        ]
+      }
+    },
+    "/api/v1/search/meetings": {
+      "get": {
+        "operationId": "SearchController_searchMeetings",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Search meetings by keyword",
+        "tags": [
+          "Search"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "MeetingOS API",
+    "description": "AI Meeting Intelligence & Organizational Knowledge Platform API",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}
