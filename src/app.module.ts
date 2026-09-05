@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { MeetingsModule } from './modules/meetings/meetings.module';
 import { TranscriptsModule } from './modules/transcripts/transcripts.module';
@@ -15,6 +16,7 @@ import { QueueModule } from './modules/queue/queue.module';
       isGlobal: true,
     }),
     PrismaModule,
+    AuthModule,
     QueueModule,
     HealthModule,
     MeetingsModule,
