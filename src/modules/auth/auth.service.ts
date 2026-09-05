@@ -223,9 +223,33 @@ export class AuthService {
 
       name = name || email.split('@')[0];
 
-      // Find or create local user
-      let user = await this.prisma.user.findUnique({
+      const orgName = `${name}'s Workspace`;
+      const orgSlug = this.generateSlug(orgName);
+
+      // Upsert user to handle both new registrations and existing records safely
+      let user = await this.prisma.user.upsert({
         where: { email },
+        update: {
+          name,
+          status: 'ACTIVE',
+        },
+        create: {
+          email,
+          name,
+          status: 'ACTIVE',
+          memberships: {
+            create: {
+              role: Role.OWNER,
+              organization: {
+                create: {
+                  name: orgName,
+                  slug: orgSlug,
+                  plan: 'FREE',
+                },
+              },
+            },
+          },
+        },
         include: {
           memberships: {
             include: {
@@ -235,42 +259,8 @@ export class AuthService {
         },
       });
 
-      if (!user) {
-        const orgName = `${name}'s Workspace`;
-        const orgSlug = this.generateSlug(orgName);
-
-        // Atomic creation of user, default workspace, and owner membership
-        user = await this.prisma.user.create({
-          data: {
-            email,
-            name,
-            status: 'ACTIVE',
-            memberships: {
-              create: {
-                role: Role.OWNER,
-                organization: {
-                  create: {
-                    name: orgName,
-                    slug: orgSlug,
-                    plan: 'FREE',
-                  },
-                },
-              },
-            },
-          },
-          include: {
-            memberships: {
-              include: {
-                organization: true,
-              },
-            },
-          },
-        });
-      } else if (user.memberships.length === 0) {
-        // If user exists without an organization, provision default workspace
-        const orgName = `${name}'s Workspace`;
-        const orgSlug = this.generateSlug(orgName);
-
+      // If user existed without any active organization, provision default workspace
+      if (!user.memberships || user.memberships.length === 0) {
         await this.prisma.organization.create({
           data: {
             name: orgName,
@@ -285,7 +275,7 @@ export class AuthService {
           },
         });
 
-        user = await this.prisma.user.findUnique({
+        const reloaded = await this.prisma.user.findUnique({
           where: { id: user.id },
           include: {
             memberships: {
@@ -295,6 +285,10 @@ export class AuthService {
             },
           },
         });
+
+        if (reloaded) {
+          user = reloaded;
+        }
       }
 
       if (!user) {
