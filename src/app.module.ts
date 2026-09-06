@@ -10,6 +10,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { SearchModule } from './modules/search/search.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
     IntelligenceModule,
     DocumentsModule,
     SearchModule,
+    ApiKeysModule,
   ],
 })
 export class AppModule {}
