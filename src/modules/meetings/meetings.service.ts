@@ -183,15 +183,22 @@ export class MeetingsService {
             orderBy: { createdAt: 'desc' },
           },
           actionItems: {
-            select: {
-              id: true,
-              status: true,
-              priority: true,
+            include: {
+              assignee: {
+                select: { id: true, name: true, email: true },
+              },
+              sourceSegment: {
+                select: { id: true, startTimeMs: true, endTimeMs: true, speakerName: true },
+              },
             },
+            orderBy: { createdAt: 'desc' },
           },
           decisions: {
             select: {
               id: true,
+              decision: true,
+              context: true,
+              confidence: true,
             },
           },
         },
