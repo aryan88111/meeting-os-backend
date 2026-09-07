@@ -21,4 +21,19 @@ export class SupabaseSyncDto {
   @IsString()
   @IsOptional()
   avatarUrl?: string;
+
+  @ApiProperty({ required: false, description: 'Provider OAuth access token (e.g. Google Access Token)' })
+  @IsString()
+  @IsOptional()
+  providerToken?: string;
+
+  @ApiProperty({ required: false, description: 'Provider OAuth refresh token (e.g. Google Refresh Token)' })
+  @IsString()
+  @IsOptional()
+  providerRefreshToken?: string;
+
+  @ApiProperty({ example: 'google', required: false, description: 'OAuth provider name' })
+  @IsString()
+  @IsOptional()
+  provider?: string;
 }
