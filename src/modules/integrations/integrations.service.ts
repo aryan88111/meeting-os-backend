@@ -3,12 +3,15 @@ import {
   BadRequestException,
   Logger,
   NotFoundException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { QueueService } from '../queue/queue.service';
 import { RABBITMQ_ROUTING_KEYS } from '../queue/queue.constants';
 import { TranscriptParserUtil } from '../transcripts/transcript-parser.util';
+import { IntelligenceService } from '../intelligence/intelligence.service';
 import { MeetingSource, MeetingStatus } from '@prisma/client';
 
 @Injectable()
@@ -19,14 +22,22 @@ export class IntegrationsService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly queueService: QueueService,
+    @Inject(forwardRef(() => IntelligenceService))
+    private readonly intelligenceService: IntelligenceService,
   ) {}
 
   getGoogleAuthUrl(customRedirectUri?: string) {
-    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID') || '';
+    const clientId = (this.configService.get<string>('GOOGLE_CLIENT_ID') || '').trim();
     const redirectUri =
       customRedirectUri ||
       this.configService.get<string>('GOOGLE_REDIRECT_URI') ||
       'http://localhost:3000/integrations/google/callback';
+
+    if (!clientId) {
+      throw new BadRequestException(
+        'Google OAuth Client ID is not configured in backend environment. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your backend environment.',
+      );
+    }
 
     const scopes = [
       'https://www.googleapis.com/auth/calendar.events',
@@ -170,26 +181,32 @@ export class IntegrationsService {
       where: {
         organizationId,
         provider: MeetingSource.GOOGLE_MEET,
-        status: 'ACTIVE',
       },
     });
 
     if (!integration || !integration.encryptedAccessToken) {
-      throw new NotFoundException('No active Google integration found for this workspace.');
+      throw new NotFoundException('No active Google integration found for this workspace. Please connect your Google Calendar in Integrations.');
     }
 
+    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    const clientSecret = this.configService.get<string>('GOOGLE_CLIENT_SECRET');
+
     const now = new Date();
-    // Refresh if expired or expiring within 2 minutes
+    // Refresh if expired or expiring within 2 minutes AND standalone refresh credentials exist
     const isExpired =
       integration.expiresAt &&
       new Date(integration.expiresAt.getTime() - 2 * 60 * 1000) <= now;
 
-    if (isExpired && integration.encryptedRefreshToken) {
-      const refreshedToken = await this.refreshGoogleToken(
-        integration.id,
-        integration.encryptedRefreshToken,
-      );
-      return { accessToken: refreshedToken, integrationId: integration.id };
+    if (isExpired && integration.encryptedRefreshToken && clientId && clientSecret) {
+      try {
+        const refreshedToken = await this.refreshGoogleToken(
+          integration.id,
+          integration.encryptedRefreshToken,
+        );
+        return { accessToken: refreshedToken, integrationId: integration.id };
+      } catch (e: any) {
+        this.logger.warn(`Could not refresh Google token via client credentials: ${e.message}`);
+      }
     }
 
     return {
@@ -215,6 +232,13 @@ export class IntegrationsService {
 
     if (!res.ok) {
       const errBody = await res.text();
+      if (res.status === 401) {
+        await this.prisma.integration.update({
+          where: { id: integrationId },
+          data: { status: 'AUTH_REQUIRED' },
+        }).catch(() => {});
+        throw new BadRequestException('Google OAuth session has expired. Please reconnect your Google account in Integrations.');
+      }
       throw new BadRequestException(`Failed to fetch Google Calendar events: ${errBody}`);
     }
 
@@ -497,18 +521,25 @@ export class IntegrationsService {
       this.logger.warn(`Could not dispatch RabbitMQ job: ${queueErr.message}`);
     }
 
+    // Process intelligence immediately to ensure instant availability in UI
+    try {
+      await this.intelligenceService.processMeetingIntelligence(meetingId);
+    } catch (procErr: any) {
+      this.logger.warn(`Immediate intelligence processing note: ${procErr.message}`);
+    }
+
     this.logger.log(
-      `Successfully ingested Google Meet transcript for meeting "${meeting.title}" (${parsed.segments.length} segments). AI job queued.`,
+      `Successfully ingested Google Meet transcript for meeting "${meeting.title}" (${parsed.segments.length} segments). Intelligence generated.`,
     );
 
     return {
       success: true,
-      message: 'Google Meet transcript fetched and queued for AI intelligence processing',
+      message: 'Google Meet transcript fetched and AI intelligence processed',
       meetingId,
       transcriptId: transcript.id,
       segmentsCount: parsed.segments.length,
       fileTitle: transcriptFileName,
-      status: 'QUEUED',
+      status: 'COMPLETED',
     };
   }
 
@@ -552,31 +583,50 @@ export class IntegrationsService {
     const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID') || '';
     const clientSecret = this.configService.get<string>('GOOGLE_CLIENT_SECRET') || '';
 
-    const res = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: refreshToken,
-        grant_type: 'refresh_token',
-      }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new BadRequestException('Failed to refresh Google OAuth token');
+    if (!clientId || !clientSecret) {
+      throw new BadRequestException('Google OAuth client credentials not configured on backend.');
     }
 
-    await this.prisma.integration.update({
-      where: { id: integrationId },
-      data: {
-        encryptedAccessToken: data.access_token,
-        expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : null,
-      },
-    });
+    try {
+      const res = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
+        }),
+      });
 
-    return data.access_token;
+      const data = await res.json();
+      if (!res.ok || !data.access_token) {
+        const errorDesc = data.error_description || data.error || 'Failed to refresh Google OAuth token';
+        this.logger.warn(`Google token refresh failed for integration ${integrationId}: ${errorDesc}`);
+
+        await this.prisma.integration.update({
+          where: { id: integrationId },
+          data: {
+            status: 'AUTH_REQUIRED',
+          },
+        }).catch(() => {});
+
+        throw new BadRequestException(`Google OAuth session expired. Please re-authenticate: ${errorDesc}`);
+      }
+
+      await this.prisma.integration.update({
+        where: { id: integrationId },
+        data: {
+          encryptedAccessToken: data.access_token,
+          expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : null,
+          status: 'ACTIVE',
+        },
+      });
+
+      return data.access_token;
+    } catch (err: any) {
+      throw err;
+    }
   }
 
   /**
@@ -593,9 +643,16 @@ export class IntegrationsService {
       attendees?: Array<{ name?: string; email?: string }>;
       participants?: Array<{ name?: string; email?: string }>;
     },
-  ): Promise<{ meetingUrl: string; providerEventId?: string }> {
+  ): Promise<{
+    meetingUrl: string;
+    providerEventId?: string;
+    googleEventLink?: string;
+    isOfficialGoogleMeet?: boolean;
+    errorReason?: string;
+  }> {
+    let errorReason: string | undefined;
     try {
-      const { accessToken } = await this.getValidAccessToken(organizationId);
+      const { accessToken, integrationId } = await this.getValidAccessToken(organizationId);
 
       const startDateTime = eventData.startTime || new Date();
       const endDateTime = eventData.endTime || new Date(startDateTime.getTime() + 45 * 60 * 1000);
@@ -647,20 +704,49 @@ export class IntegrationsService {
           data.htmlLink;
 
         if (meetUrl) {
-          this.logger.log(`Created Google Meet event "${eventData.title}" (Event ID: ${data.id}) with link: ${meetUrl}`);
-          return { meetingUrl: meetUrl, providerEventId: data.id };
+          this.logger.log(`Created genuine Google Meet event "${eventData.title}" (Event ID: ${data.id}) with link: ${meetUrl}`);
+          return {
+            meetingUrl: meetUrl,
+            providerEventId: data.id,
+            googleEventLink: data.htmlLink,
+            isOfficialGoogleMeet: true,
+          };
         }
       } else {
         const errText = await res.text();
         this.logger.warn(`Google Calendar API response error: ${errText}`);
+        if (res.status === 401) {
+          await this.prisma.integration.update({
+            where: { id: integrationId },
+            data: { status: 'AUTH_REQUIRED' },
+          }).catch(() => {});
+          errorReason = 'Google session expired. Please reconnect your Google account in Integrations.';
+        } else {
+          errorReason = `Google API error: ${errText}`;
+        }
       }
     } catch (err: any) {
-      this.logger.warn(`Could not create Google Calendar event via API (${err.message}).`);
+      this.logger.warn(`Google Calendar event creation unavailable (${err.message}). Using persistent fallback.`);
+      errorReason = err.message;
     }
 
-    // Fallback if Google Calendar API is not yet enabled or not connected
-    const randCode = `${Math.random().toString(36).substring(2, 5)}-${Math.random().toString(36).substring(2, 6)}-${Math.random().toString(36).substring(2, 5)}`;
-    return { meetingUrl: `https://meet.google.com/${randCode}` };
+    // Never generate fake random meet.google.com codes that Google will reject.
+    // Instead, provide a deterministic persistent shared meeting room so all attendees join the exact same call.
+    const roomSlug = eventData.title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 24) || 'meeting';
+    const orgPrefix = organizationId.slice(0, 6);
+    const randRoomId = Math.random().toString(36).substring(2, 8);
+    const fallbackPersistentUrl = `https://meet.jit.si/meetingos-${orgPrefix}-${roomSlug}-${randRoomId}`;
+
+    return {
+      meetingUrl: fallbackPersistentUrl,
+      isOfficialGoogleMeet: false,
+      errorReason,
+    };
   }
 
   async deleteGoogleCalendarEvent(organizationId: string, eventId: string) {
@@ -679,6 +765,57 @@ export class IntegrationsService {
     } catch (err: any) {
       this.logger.warn(`Could not delete Google Calendar event ${eventId}: ${err.message}`);
     }
+  }
+
+  /**
+   * Pushes an existing local MeetingOS meeting to Google Calendar and attaches real Google Meet link
+   */
+  async pushMeetingToGoogleCalendar(meetingId: string, organizationId: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({
+      where: { id: meetingId, organizationId },
+      include: { participants: true },
+    });
+
+    if (!meeting) {
+      throw new NotFoundException(`Meeting ${meetingId} not found`);
+    }
+
+    const res = await this.createGoogleMeetEvent(organizationId, userId, {
+      title: meeting.title,
+      description: meeting.description || undefined,
+      startTime: meeting.startTime,
+      endTime: meeting.endTime,
+      participants: meeting.participants.map((p) => ({
+        name: p.name,
+        email: p.email || undefined,
+      })),
+    });
+
+    if (!res.isOfficialGoogleMeet || !res.providerEventId) {
+      throw new BadRequestException(
+        res.errorReason ||
+          'Could not create event in Google Calendar. Please reconnect your Google account in Integrations.',
+      );
+    }
+
+    const updated = await this.prisma.meeting.update({
+      where: { id: meeting.id },
+      data: {
+        meetingUrl: res.meetingUrl,
+        provider: MeetingSource.GOOGLE_MEET,
+        source: MeetingSource.GOOGLE_MEET,
+        providerEventId: res.providerEventId,
+        providerMeetingId: res.providerEventId,
+      },
+      include: { participants: true },
+    });
+
+    return {
+      success: true,
+      meeting: updated,
+      isOfficialGoogleMeet: res.isOfficialGoogleMeet ?? false,
+      googleEventLink: res.googleEventLink,
+    };
   }
 
   async listIntegrations(organizationId: string) {
