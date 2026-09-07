@@ -4,11 +4,14 @@ import {
   BadRequestException,
   UnauthorizedException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { QueueService } from '../queue/queue.service';
 import { RABBITMQ_ROUTING_KEYS } from '../queue/queue.constants';
 import { TranscriptParserUtil } from './transcript-parser.util';
+import { IntelligenceService } from '../intelligence/intelligence.service';
 import {
   UploadTranscriptDto,
   UploadAndCreateMeetingDto,
@@ -22,6 +25,8 @@ export class TranscriptsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queueService: QueueService,
+    @Inject(forwardRef(() => IntelligenceService))
+    private readonly intelligenceService: IntelligenceService,
   ) {}
 
   /**
@@ -217,17 +222,24 @@ export class TranscriptsService {
         this.logger.warn(`Could not dispatch RabbitMQ job: ${queueErr.message}`);
       }
 
+      // Process intelligence immediately
+      try {
+        await this.intelligenceService.processMeetingIntelligence(meetingId);
+      } catch (procErr: any) {
+        this.logger.warn(`Immediate intelligence processing note: ${procErr.message}`);
+      }
+
       this.logger.log(
-        `Transcript uploaded successfully for meeting ${meetingId} (${parsed.segments.length} segments).`,
+        `Transcript uploaded and intelligence generated for meeting ${meetingId} (${parsed.segments.length} segments).`,
       );
 
       return {
-        message: 'Transcript uploaded and queued for AI intelligence processing',
+        message: 'Transcript uploaded and AI intelligence processed',
         meetingId,
         transcriptId: transcript.id,
         segmentsCount: parsed.segments.length,
         source: parsed.source,
-        status: 'QUEUED',
+        status: 'COMPLETED',
       };
     } catch (error: any) {
       this.logger.error(`Failed to upload transcript: ${error.message}`, error.stack);
@@ -353,16 +365,23 @@ export class TranscriptsService {
         this.logger.warn(`Could not dispatch RabbitMQ job: ${queueErr.message}`);
       }
 
+      // Process intelligence immediately
+      try {
+        await this.intelligenceService.processMeetingIntelligence(meeting.id);
+      } catch (procErr: any) {
+        this.logger.warn(`Immediate intelligence processing note: ${procErr.message}`);
+      }
+
       this.logger.log(
-        `Created new meeting ${meeting.id} ("${meetingTitle}") with ${parsed.segments.length} transcript segments.`,
+        `Created new meeting ${meeting.id} ("${meetingTitle}") with ${parsed.segments.length} transcript segments and intelligence generated.`,
       );
 
       return {
-        message: 'Meeting created and transcript queued for AI processing',
+        message: 'Meeting created and AI intelligence processed',
         meeting: {
           id: meeting.id,
           title: meeting.title,
-          status: meeting.status,
+          status: 'COMPLETED',
         },
         transcriptId: transcript.id,
         segmentsCount: parsed.segments.length,
