@@ -148,7 +148,7 @@
             "bearer": []
           }
         ],
-        "summary": "Generate Google Calendar & Meet OAuth 2.0 authorization URL",
+        "summary": "Generate Google Calendar, Meet & Drive OAuth 2.0 authorization URL",
         "tags": [
           "Integrations"
         ]
@@ -204,6 +204,84 @@
         ]
       }
     },
+    "/api/v1/integrations/google/sync-transcript/{meetingId}": {
+      "post": {
+        "operationId": "IntegrationsController_syncGoogleMeetTranscript",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transcript fetched and queued for AI extraction"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Automatically fetch and ingest transcript from Google Meet / Drive for a specific meeting",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/google/scan-transcripts": {
+      "post": {
+        "operationId": "IntegrationsController_scanRecentTranscripts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Batch scan recently ended Google Meet meetings and automatically ingest their transcripts",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/google/push-meeting/{meetingId}": {
+      "post": {
+        "operationId": "IntegrationsController_pushMeetingToGoogleCalendar",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Push an existing meeting to Google Calendar and attach a genuine Google Meet video link",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
     "/api/v1/integrations": {
       "get": {
         "operationId": "IntegrationsController_listIntegrations",
@@ -221,6 +299,258 @@
         "summary": "List all connected workspace integrations",
         "tags": [
           "Integrations"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/intelligence/process": {
+      "post": {
+        "operationId": "IntelligenceController_processIntelligence",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Process or re-generate intelligence from meeting transcripts",
+        "tags": [
+          "Intelligence"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/intelligence/summary": {
+      "get": {
+        "operationId": "IntelligenceController_getSummary",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get meeting summary",
+        "tags": [
+          "Intelligence"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/intelligence/topics": {
+      "get": {
+        "operationId": "IntelligenceController_getTopics",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get extracted topics",
+        "tags": [
+          "Intelligence"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/intelligence/decisions": {
+      "get": {
+        "operationId": "IntelligenceController_getDecisions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get extracted decisions",
+        "tags": [
+          "Intelligence"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/intelligence/action-items": {
+      "get": {
+        "operationId": "IntelligenceController_getActionItems",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get extracted action items",
+        "tags": [
+          "Intelligence"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/intelligence/risks": {
+      "get": {
+        "operationId": "IntelligenceController_getRisks",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get extracted risks and blockers",
+        "tags": [
+          "Intelligence"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/intelligence/questions": {
+      "get": {
+        "operationId": "IntelligenceController_getOpenQuestions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get open questions",
+        "tags": [
+          "Intelligence"
+        ]
+      }
+    },
+    "/api/v1/queue/stats": {
+      "get": {
+        "operationId": "QueueController_getStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Queue metrics and connection status"
+          }
+        },
+        "summary": "Get RabbitMQ Queue Health, message depths, and DLQ metrics",
+        "tags": [
+          "Queue & DLQ Management"
+        ]
+      }
+    },
+    "/api/v1/queue/dlq/replay": {
+      "post": {
+        "operationId": "QueueController_replayDLQ",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Count of successfully replayed messages"
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Replay dead-lettered messages from DLQ back into primary work queues",
+        "tags": [
+          "Queue & DLQ Management"
+        ]
+      }
+    },
+    "/api/v1/queue/dlq/purge": {
+      "delete": {
+        "operationId": "QueueController_purgeDLQ",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Count of purged DLQ messages"
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Purge all poisoned / failed messages from the Dead-Letter Queue",
+        "tags": [
+          "Queue & DLQ Management"
+        ]
+      }
+    },
+    "/api/v1/queue/test-publish": {
+      "post": {
+        "operationId": "QueueController_testPublish",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Test publish a job to the primary exchange",
+        "tags": [
+          "Queue & DLQ Management"
         ]
       }
     },
@@ -445,6 +775,11 @@
             "description": ""
           }
         },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
         "summary": "Get meeting transcript metadata and content",
         "tags": [
           "Transcripts"
@@ -469,15 +804,20 @@
             "description": ""
           }
         },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
         "summary": "Get ordered transcript segments with speaker attribution",
         "tags": [
           "Transcripts"
         ]
       }
     },
-    "/api/v1/meetings/{id}/intelligence/summary": {
-      "get": {
-        "operationId": "IntelligenceController_getSummary",
+    "/api/v1/meetings/{id}/transcript/upload": {
+      "post": {
+        "operationId": "TranscriptsController_uploadTranscript",
         "parameters": [
           {
             "name": "id",
@@ -488,86 +828,59 @@
             }
           }
         ],
-        "responses": {
-          "200": {
-            "description": ""
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadTranscriptDto"
+              }
+            }
           }
         },
-        "summary": "Get meeting summary",
+        "responses": {
+          "200": {
+            "description": "Transcript parsed and queued for AI intelligence processing"
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Upload and parse transcript file/text for an existing meeting",
         "tags": [
-          "Intelligence"
+          "Transcripts"
         ]
       }
     },
-    "/api/v1/meetings/{id}/intelligence/decisions": {
-      "get": {
-        "operationId": "IntelligenceController_getDecisions",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
+    "/api/v1/transcripts/upload-and-create": {
+      "post": {
+        "operationId": "TranscriptsController_uploadAndCreate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadAndCreateMeetingDto"
+              }
             }
           }
-        ],
+        },
         "responses": {
-          "200": {
-            "description": ""
+          "201": {
+            "description": "Meeting created and transcript queued for processing"
           }
         },
-        "summary": "Get extracted decisions",
-        "tags": [
-          "Intelligence"
-        ]
-      }
-    },
-    "/api/v1/meetings/{id}/intelligence/action-items": {
-      "get": {
-        "operationId": "IntelligenceController_getActionItems",
-        "parameters": [
+        "security": [
           {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
+            "JWT": []
           }
         ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Get extracted action items",
+        "summary": "Upload a transcript and automatically provision a new meeting in one step",
         "tags": [
-          "Intelligence"
-        ]
-      }
-    },
-    "/api/v1/meetings/{id}/intelligence/risks": {
-      "get": {
-        "operationId": "IntelligenceController_getRisks",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Get extracted risks and blockers",
-        "tags": [
-          "Intelligence"
+          "Transcripts"
         ]
       }
     },
@@ -595,6 +908,44 @@
         ]
       }
     },
+    "/api/v1/meetings/{id}/documents/export": {
+      "get": {
+        "operationId": "DocumentsController_exportDocument",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "description": "Format of the report (docx, pdf, markdown)",
+            "schema": {
+              "enum": [
+                "docx",
+                "pdf",
+                "markdown"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Export and download meeting intelligence report (Binary Word .docx, Binary PDF, or Markdown)",
+        "tags": [
+          "Documents"
+        ]
+      }
+    },
     "/api/v1/search/meetings": {
       "get": {
         "operationId": "SearchController_searchMeetings",
@@ -615,7 +966,276 @@
         },
         "summary": "Search meetings by keyword",
         "tags": [
-          "Search"
+          "Search & Knowledge"
+        ]
+      }
+    },
+    "/api/v1/search/ask": {
+      "post": {
+        "operationId": "SearchController_askKnowledgeBase",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskKnowledgeBaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ask questions across all workspace meetings (RAG Knowledge Base)",
+        "tags": [
+          "Search & Knowledge"
+        ]
+      }
+    },
+    "/api/v1/search/sessions": {
+      "get": {
+        "operationId": "SearchController_listSessions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all historical chat sessions for the current user",
+        "tags": [
+          "Search & Knowledge"
+        ]
+      }
+    },
+    "/api/v1/search/sessions/{id}": {
+      "get": {
+        "operationId": "SearchController_getSession",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get full message thread for a chat session",
+        "tags": [
+          "Search & Knowledge"
+        ]
+      },
+      "patch": {
+        "operationId": "SearchController_renameSession",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameSessionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rename a chat session title",
+        "tags": [
+          "Search & Knowledge"
+        ]
+      },
+      "delete": {
+        "operationId": "SearchController_deleteSession",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a chat session and its message history",
+        "tags": [
+          "Search & Knowledge"
+        ]
+      }
+    },
+    "/api/v1/api-keys": {
+      "get": {
+        "operationId": "ApiKeysController_listKeys",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all workspace API keys",
+        "tags": [
+          "API Keys & Developer"
+        ]
+      },
+      "post": {
+        "operationId": "ApiKeysController_createKey",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate a new scoped developer API key",
+        "tags": [
+          "API Keys & Developer"
+        ]
+      }
+    },
+    "/api/v1/api-keys/usage": {
+      "get": {
+        "operationId": "ApiKeysController_getUsageStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get live workspace API consumption, quota metrics, and tier details",
+        "tags": [
+          "API Keys & Developer"
+        ]
+      }
+    },
+    "/api/v1/api-keys/{id}/revoke": {
+      "patch": {
+        "operationId": "ApiKeysController_revokeKey",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Revoke / deactivate an API key",
+        "tags": [
+          "API Keys & Developer"
+        ]
+      }
+    },
+    "/api/v1/api-keys/{id}": {
+      "delete": {
+        "operationId": "ApiKeysController_deleteKey",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Permanently delete an API key",
+        "tags": [
+          "API Keys & Developer"
         ]
       }
     }
@@ -709,6 +1329,19 @@
             "type": "string",
             "example": "https://lh3.googleusercontent.com/...",
             "description": "Avatar URL"
+          },
+          "providerToken": {
+            "type": "string",
+            "description": "Provider OAuth access token (e.g. Google Access Token)"
+          },
+          "providerRefreshToken": {
+            "type": "string",
+            "description": "Provider OAuth refresh token (e.g. Google Refresh Token)"
+          },
+          "provider": {
+            "type": "string",
+            "example": "google",
+            "description": "OAuth provider name"
           }
         },
         "required": [
@@ -895,6 +1528,115 @@
             }
           }
         }
+      },
+      "UploadTranscriptDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Raw transcript text or structured JSON string"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Original filename (e.g. roadmap.txt, meeting.vtt)"
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "MIME type of uploaded file"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "UploadAndCreateMeetingDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Raw transcript text or structured JSON string"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Original filename (e.g. roadmap.txt, meeting.vtt)"
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "MIME type of uploaded file"
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the new meeting",
+            "default": "Uploaded Meeting Transcript"
+          },
+          "description": {
+            "type": "string",
+            "description": "Meeting description"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "AskKnowledgeBaseDto": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Natural language question to ask across workspace meeting intelligence",
+            "example": "What did we decide in our last meeting?"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Optional existing chat session ID to continue conversation"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "RenameSessionDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "New session title",
+            "example": "Sprint Architecture Q&A"
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "CreateApiKeyDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name or label for the API Key",
+            "example": "Production Webhook Service"
+          },
+          "scopes": {
+            "description": "Array of permitted scopes",
+            "example": [
+              "meetings:read",
+              "meetings:write",
+              "rag:query"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresInDays": {
+            "type": "number",
+            "description": "Optional expiration in days (e.g., 30, 90, 365)",
+            "example": 90
+          }
+        },
+        "required": [
+          "name"
+        ]
       }
     }
   }
