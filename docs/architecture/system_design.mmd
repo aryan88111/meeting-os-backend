@@ -1,0 +1,168 @@
+%% ============================================================================
+%% MeetingOS System Architecture Specification & Mermaid Diagrams (.mmd)
+%% ============================================================================
+
+%% ----------------------------------------------------------------------------
+%% 1. HIGH-LEVEL SYSTEM TOPOLOGY & CONTAINER ARCHITECTURE
+%% ----------------------------------------------------------------------------
+flowchart TB
+    subgraph CLIENT_LAYER ["🖥️ Client Tier (Presentation Layer)"]
+        UI["React 19 + TypeScript SPA (Vite)"]
+        STORE["Zustand State Stores (Auth, Meetings, UI)"]
+        ROUTER["React Router v7"]
+        UI --> STORE
+        UI --> ROUTER
+    end
+
+    subgraph INGRESS_LAYER ["🛡️ Ingress & Security Layer"]
+        AUTH_GUARD["Supabase JWT & RBAC Guard"]
+        RATE_LIMITER["Throttler / Rate Limiting Middleware"]
+        API_KEYS["API Key Signature Validator"]
+    end
+
+    subgraph API_GATEWAY ["⚡ Application Core (NestJS 10 Framework)"]
+        AUTH_MOD["Auth Module (OAuth, Supabase Sync)"]
+        MEETINGS_MOD["Meetings Module (Scheduling & Lifecycle)"]
+        INTEGRATIONS_MOD["Integrations Module (Token Orchestrator)"]
+        TRANSCRIPTS_MOD["Transcripts Module (Diarization Ingestion)"]
+        INTELLIGENCE_MOD["Intelligence Module (Gemini LLM)"]
+        DOCS_MOD["Documents Module (PDF/HTML/Briefings)"]
+        SEARCH_MOD["Search & RAG Module (Hybrid Vector Retrieval)"]
+        AUDIT_MOD["Audit & Compliance Module"]
+    end
+
+    subgraph ASYNC_MESSAGE_BUS ["📨 Message Broker & Async Task Queue"]
+        RABBIT_MQ[("RabbitMQ Cluster")]
+        Q_INTEL["Queue: meetingos.intelligence"]
+        Q_TRANSCRIPT["Queue: meetingos.transcripts"]
+        Q_CALENDAR["Queue: meetingos.calendar.sync"]
+        DLQ["Dead Letter Exchange (DLQ + Exponential Backoff)"]
+        RABBIT_MQ --> Q_INTEL
+        RABBIT_MQ --> Q_TRANSCRIPT
+        RABBIT_MQ --> Q_CALENDAR
+        RABBIT_MQ --> DLQ
+    end
+
+    subgraph PERSISTENCE_LAYER ["💾 Data Persistence Layer"]
+        PG_DB[("PostgreSQL 16 Engine")]
+        PG_VECTOR[("pgvector Extension (768-dim Embeddings)")]
+        STORAGE_BUCKET[("Object Storage (S3 / Supabase Buckets)")]
+        PRISMA["Prisma ORM Client"]
+        PRISMA --> PG_DB
+        PRISMA --> PG_VECTOR
+    end
+
+    subgraph EXTERNAL_APIS ["🌐 External Cloud Providers & AI Services"]
+        SUPABASE["Supabase Auth & Session Service"]
+        GOOGLE_API["Google Workspace (OAuth2, Calendar v3, Meet API)"]
+        MS_GRAPH["Microsoft Entra ID & Graph API (Teams, Calendar)"]
+        GEMINI_AI["Google Gemini 1.5 Pro / Flash & Embedding API"]
+    end
+
+    %% Client to Ingress
+    CLIENT_LAYER -- "HTTPS / REST API + Bearer JWT" --> INGRESS_LAYER
+    INGRESS_LAYER --> API_GATEWAY
+
+    %% API Gateway to External Auth & Services
+    AUTH_MOD <--> SUPABASE
+    INTEGRATIONS_MOD <--> GOOGLE_API
+    INTEGRATIONS_MOD <--> MS_GRAPH
+    INTELLIGENCE_MOD <--> GEMINI_AI
+    SEARCH_MOD <--> GEMINI_AI
+
+    %% Modules to Persistence
+    API_GATEWAY --> PRISMA
+    TRANSCRIPTS_MOD -- "Store Raw Audio/VTT" --> STORAGE_BUCKET
+    DOCS_MOD -- "Export Artifacts" --> STORAGE_BUCKET
+
+    %% Async Dispatch
+    MEETINGS_MOD -- "Enqueue Meeting Sync" --> Q_CALENDAR
+    TRANSCRIPTS_MOD -- "Enqueue AI Extraction" --> Q_INTEL
+    TRANSCRIPTS_MOD -- "Enqueue Segmentation" --> Q_TRANSCRIPT
+    Q_INTEL --> INTELLIGENCE_MOD
+    Q_TRANSCRIPT --> TRANSCRIPTS_MOD
+    Q_CALENDAR --> INTEGRATIONS_MOD
+
+
+%% ----------------------------------------------------------------------------
+%% 2. MULTI-TIER VIDEO & CALENDAR INTEGRATION DISPATCH ENGINE
+%% ----------------------------------------------------------------------------
+flowchart TD
+    START([User Schedules Meeting]) --> CHECK_PROV{Select Provider}
+
+    %% Google Flow
+    CHECK_PROV -- "GOOGLE_MEET" --> G_TOKEN[Verify Google OAuth Token]
+    G_TOKEN --> G_CALL[Call Google Calendar v3 API: createEvent + conferenceData]
+    G_CALL --> G_SUCCESS{Created?}
+    G_SUCCESS -- Yes --> G_SAVE[Save meetingUrl + providerMeetingId to DB]
+    G_SUCCESS -- No / Expired --> G_REFRESH[Refresh Token via Google OAuth Endpoint]
+    G_REFRESH --> G_CALL
+
+    %% Microsoft Teams Flow
+    CHECK_PROV -- "MICROSOFT_TEAMS" --> MS_TOKEN[Verify / Refresh Microsoft Graph Token]
+    MS_TOKEN --> TIER1[Tier 1: POST /me/onlineMeetings]
+    
+    TIER1 --> T1_STATUS{201 Created?}
+    T1_STATUS -- Yes (Work/School Enterprise) --> MS_SAVE_T1[Save Official Join URL & OnlineMeeting ID]
+    
+    T1_STATUS -- "400 / 401 / Personal Account" --> TIER2[Tier 2: POST /me/events with teamsForBusiness]
+    TIER2 --> T2_STATUS{201 Created?}
+    T2_STATUS -- Yes --> MS_SAVE_T2[Save Event Join URL & Calendar Event ID]
+    
+    T2_STATUS -- "Failed / Personal Scope" --> TIER3[Tier 3: Standard /me/events Calendar Invite]
+    TIER3 --> T3_STATUS{201 Created?}
+    T3_STATUS -- Yes --> MS_SAVE_T3[Save Calendar Event + Fallback Link]
+    
+    T3_STATUS -- "Failed (Personal Free Account)" --> TIER4[Tier 4: MeetingOS Direct Teams Room Dispatcher]
+    TIER4 --> MS_FALLBACK[Generate Direct Teams Meetup URL + Open Join Link]
+    MS_FALLBACK --> COPY_TOOL[Enable 1-Click Attendee Email Copy System]
+    
+    G_SAVE --> PERSIST([Meeting Ready in Dashboard])
+    MS_SAVE_T1 --> PERSIST
+    MS_SAVE_T2 --> PERSIST
+    MS_SAVE_T3 --> PERSIST
+    COPY_TOOL --> PERSIST
+
+
+%% ----------------------------------------------------------------------------
+%% 3. ASYNC INTELLIGENCE & VECTOR RAG PIPELINE (SEQUENCE)
+%% ----------------------------------------------------------------------------
+sequenceDiagram
+    autonumber
+    actor User as User / Client
+    participant API as Meetings & Transcripts API
+    participant Queue as RabbitMQ (meetingos.intelligence)
+    participant Worker as Async Intelligence Worker
+    participant Gemini as Google Gemini 1.5 LLM
+    participant DB as PostgreSQL + pgvector (Prisma)
+    participant Storage as Object Storage (S3 / Supabase)
+
+    User->>API: Upload Transcript / Webhook Ingestion
+    API->>Storage: Store Raw Transcript File (.vtt / .json / .txt)
+    API->>DB: Create Transcript & TranscriptSegments (Diarized)
+    API->>DB: Update MeetingStatus -> TRANSCRIPT_RECEIVED -> QUEUED
+    API->>Queue: Publish Job { meetingId, transcriptId, orgId }
+    API-->>User: 202 Accepted (Processing in background)
+
+    Queue->>Worker: Consume Job from meetingos.intelligence
+    Worker->>DB: Update MeetingStatus -> PROCESSING & Create ProcessingJob
+    Worker->>DB: Fetch TranscriptSegments ordered by sequence
+    
+    Note over Worker,Gemini: Phase 1: Structured AI Analysis
+    Worker->>Gemini: Prompt with Segments + System Metaprompt (JSON Schema)
+    Gemini-->>Worker: Return JSON (Executive Summary, Topics, Decisions, Action Items, Risks, Open Questions)
+    
+    Worker->>DB: Save MeetingSummary (Executive + Detailed Markdown)
+    Worker->>DB: Save Topics (Importance, Key Points)
+    Worker->>DB: Save Decisions (Context, Confidence, sourceSegmentId)
+    Worker->>DB: Save ActionItems (Assignee, Priority, Deadline, Status)
+    Worker->>DB: Save Risks (Severity, Mitigation, Confidence)
+    Worker->>DB: Save OpenQuestions (AssignedTo, Status)
+
+    Note over Worker,Gemini: Phase 2: Semantic Vector Indexing
+    Worker->>Gemini: Batch Generate Embeddings (768-dim) for Chunks/Segments
+    Gemini-->>Worker: Vector Embeddings Array
+    Worker->>DB: Bulk Insert into `embeddings` table (pgvector)
+
+    Worker->>DB: Update MeetingStatus -> COMPLETED & ProcessingJob -> COMPLETED
+    Worker-->>User: WebSocket / SSE Event: Meeting Intelligence Ready

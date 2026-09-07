@@ -141,9 +141,11 @@ export class MeetingsService {
         };
       }
       case 'MICROSOFT_TEAMS': {
-        const threadId = Math.random().toString(36).substring(2, 10);
+        const res = await this.integrationsService.createMicrosoftTeamsEvent(organizationId, userId, details);
         return {
-          meetingUrl: `https://teams.microsoft.com/l/meetup-join/19%3ameeting_${threadId}%40thread.v2/0`,
+          meetingUrl: res.meetingUrl,
+          providerEventId: res.providerEventId,
+          providerMeetingId: res.providerEventId,
         };
       }
       case 'MANUAL':

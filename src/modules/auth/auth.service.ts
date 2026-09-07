@@ -300,7 +300,7 @@ export class AuthService {
       const role = activeMembership?.role || Role.MEMBER;
 
       // Auto-provision Google Calendar & Meet integration if Supabase provided Google OAuth tokens
-      if (organizationId && dto.providerToken && (dto.provider === 'google' || !dto.provider)) {
+      if (organizationId && dto.providerToken && dto.provider === 'google') {
         try {
           const freshExpiresAt = new Date(Date.now() + 3600 * 1000);
           const existingIntegration = await this.prisma.integration.findFirst({
@@ -339,6 +339,65 @@ export class AuthService {
           this.logger.log(`Google Calendar & Meet integration automatically provisioned via Supabase OAuth for ${email}`);
         } catch (intErr: any) {
           this.logger.warn(`Could not auto-provision Google integration from Supabase OAuth token: ${intErr.message}`);
+        }
+      }
+
+      // Auto-provision Microsoft Teams integration if Supabase provided Azure/Microsoft OAuth tokens
+      if (organizationId && dto.providerToken && (dto.provider === 'azure' || dto.provider === 'microsoft')) {
+        try {
+          // Decode unencrypted JWT claims for logging
+          try {
+            const parts = dto.providerToken.split('.');
+            if (parts.length === 3) {
+              const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+              this.logger.log(
+                `Microsoft Token Claims -> aud: ${payload.aud}, scp: ${payload.scp || payload.roles || 'none'}, exp: ${new Date(payload.exp * 1000).toISOString()}`,
+              );
+            }
+          } catch (jwtErr) {
+            this.logger.warn(`Could not parse token claims: ${jwtErr}`);
+          }
+
+          const freshExpiresAt = new Date(Date.now() + 3600 * 1000);
+          const existingIntegration = await this.prisma.integration.findFirst({
+            where: {
+              organizationId,
+              provider: MeetingSource.MICROSOFT_TEAMS,
+            },
+          });
+
+          const microsoftScopes =
+            'openid email profile offline_access Calendars.Read Calendars.ReadWrite OnlineMeetings.Read OnlineMeetings.ReadWrite OnlineMeetingTranscript.Read.All User.Read';
+
+          if (existingIntegration) {
+            await this.prisma.integration.update({
+              where: { id: existingIntegration.id },
+              data: {
+                encryptedAccessToken: dto.providerToken,
+                ...(dto.providerRefreshToken && { encryptedRefreshToken: dto.providerRefreshToken }),
+                expiresAt: freshExpiresAt,
+                providerUserId: email,
+                status: 'ACTIVE',
+                scopes: microsoftScopes,
+              },
+            });
+          } else {
+            await this.prisma.integration.create({
+              data: {
+                organizationId,
+                provider: MeetingSource.MICROSOFT_TEAMS,
+                encryptedAccessToken: dto.providerToken,
+                encryptedRefreshToken: dto.providerRefreshToken,
+                expiresAt: freshExpiresAt,
+                providerUserId: email,
+                status: 'ACTIVE',
+                scopes: microsoftScopes,
+              },
+            });
+          }
+          this.logger.log(`Microsoft Teams integration automatically provisioned via Supabase OAuth for ${email}`);
+        } catch (intErr: any) {
+          this.logger.warn(`Could not auto-provision Microsoft Teams integration from Supabase OAuth token: ${intErr.message}`);
         }
       }
 
