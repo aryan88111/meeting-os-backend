@@ -27,11 +27,45 @@ async function bootstrap() {
   );
 
   // CORS configuration
+  const allowedOriginsEnv = process.env.WEB_URL ? process.env.WEB_URL.split(',').map((o) => o.trim()) : [];
+  const defaultAllowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:4173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:4173',
+    ...allowedOriginsEnv,
+  ];
+
   app.enableCors({
-    origin: process.env.WEB_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, server-to-server, Postman)
+      if (!origin) return callback(null, true);
+
+      // Check if origin is explicitly allowed or matches local dev pattern
+      const isAllowed =
+        defaultAllowedOrigins.includes(origin) ||
+        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
+      if (isAllowed || process.env.NODE_ENV !== 'production') {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS policy`), false);
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'X-Requested-With',
+      'Origin',
+      'baggage',
+      'sentry-trace',
+    ],
+    exposedHeaders: ['Content-Disposition'],
   });
 
   // Swagger OpenAPI Documentation
