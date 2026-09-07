@@ -15,7 +15,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { SupabaseSyncDto } from './dto/supabase-sync.dto';
-import { Role } from '@prisma/client';
+import { Role, MeetingSource } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -298,6 +298,49 @@ export class AuthService {
       const activeMembership = user.memberships[0];
       const organizationId = activeMembership?.organizationId;
       const role = activeMembership?.role || Role.MEMBER;
+
+      // Auto-provision Google Calendar & Meet integration if Supabase provided Google OAuth tokens
+      if (organizationId && dto.providerToken && (dto.provider === 'google' || !dto.provider)) {
+        try {
+          const freshExpiresAt = new Date(Date.now() + 3600 * 1000);
+          const existingIntegration = await this.prisma.integration.findFirst({
+            where: {
+              organizationId,
+              provider: MeetingSource.GOOGLE_MEET,
+            },
+          });
+
+          if (existingIntegration) {
+            await this.prisma.integration.update({
+              where: { id: existingIntegration.id },
+              data: {
+                encryptedAccessToken: dto.providerToken,
+                ...(dto.providerRefreshToken && { encryptedRefreshToken: dto.providerRefreshToken }),
+                expiresAt: freshExpiresAt,
+                providerUserId: email,
+                status: 'ACTIVE',
+                scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/drive.readonly',
+              },
+            });
+          } else {
+            await this.prisma.integration.create({
+              data: {
+                organizationId,
+                provider: MeetingSource.GOOGLE_MEET,
+                encryptedAccessToken: dto.providerToken,
+                encryptedRefreshToken: dto.providerRefreshToken,
+                expiresAt: freshExpiresAt,
+                providerUserId: email,
+                status: 'ACTIVE',
+                scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/drive.readonly',
+              },
+            });
+          }
+          this.logger.log(`Google Calendar & Meet integration automatically provisioned via Supabase OAuth for ${email}`);
+        } catch (intErr: any) {
+          this.logger.warn(`Could not auto-provision Google integration from Supabase OAuth token: ${intErr.message}`);
+        }
+      }
 
       const token = this.signToken({
         sub: user.id,
