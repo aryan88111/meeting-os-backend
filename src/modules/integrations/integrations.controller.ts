@@ -81,6 +81,22 @@ export class IntegrationsController {
     );
   }
 
+  @Post('google/push-meeting/:meetingId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Push an existing meeting to Google Calendar and attach a genuine Google Meet video link',
+  })
+  async pushMeetingToGoogleCalendar(
+    @Param('meetingId') meetingId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.integrationsService.pushMeetingToGoogleCalendar(
+      meetingId,
+      user.organizationId,
+      user.userId,
+    );
+  }
+
   @Get()
   @ApiOperation({ summary: 'List all connected workspace integrations' })
   async listIntegrations(@CurrentUser() user: AuthenticatedUser) {
