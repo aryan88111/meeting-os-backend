@@ -16,6 +16,7 @@ import { ApiKeysModule } from './modules/api-keys/api-keys.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env', 'backend/.env', '../.env'],
     }),
     PrismaModule,
     AuthModule,
