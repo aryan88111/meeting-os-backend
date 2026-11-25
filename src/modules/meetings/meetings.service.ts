@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IntegrationsService } from '../integrations/integrations.service';
+import { IntelligenceService } from '../intelligence/intelligence.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { MeetingStatus, Prisma } from '@prisma/client';
+import { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 @Injectable()
 export class MeetingsService {
@@ -13,6 +15,8 @@ export class MeetingsService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => IntegrationsService))
     private readonly integrationsService: IntegrationsService,
+    @Inject(forwardRef(() => IntelligenceService))
+    private readonly intelligenceService: IntelligenceService,
   ) {}
 
   async create(organizationId: string, userId: string, dto: CreateMeetingDto) {
@@ -27,6 +31,8 @@ export class MeetingsService {
     let meetingUrl = dto.meetingUrl?.trim();
     let providerEventId: string | undefined;
     let providerMeetingId: string | undefined;
+    let googleEventLink: string | undefined;
+    let isOfficialGoogleMeet: boolean | undefined;
 
     // Automated Video Link Generation
     if (!meetingUrl) {
@@ -45,6 +51,8 @@ export class MeetingsService {
       meetingUrl = generated.meetingUrl;
       providerEventId = generated.providerEventId;
       providerMeetingId = generated.providerMeetingId;
+      googleEventLink = generated.googleEventLink;
+      isOfficialGoogleMeet = generated.isOfficialGoogleMeet;
     }
 
     const meeting = await this.prisma.meeting.create({
@@ -86,7 +94,11 @@ export class MeetingsService {
     });
 
     this.logger.log(`Created meeting ${meeting.id} (${dto.provider || 'MANUAL'}) with URL: ${meetingUrl}`);
-    return meeting;
+    return {
+      ...meeting,
+      googleCalendarSynced: isOfficialGoogleMeet ?? (!!providerEventId && dto.provider === 'GOOGLE_MEET'),
+      googleEventLink,
+    };
   }
 
   /**
@@ -103,14 +115,30 @@ export class MeetingsService {
       endTime?: Date | null;
       participants?: Array<{ name?: string; email?: string }>;
     },
-  ): Promise<{ meetingUrl: string; providerEventId?: string; providerMeetingId?: string }> {
+  ): Promise<{
+    meetingUrl: string;
+    providerEventId?: string;
+    providerMeetingId?: string;
+    googleEventLink?: string;
+    isOfficialGoogleMeet?: boolean;
+  }> {
     switch (provider) {
+      case 'MEETINGOS_ROOM': {
+        const roomId = Math.random().toString(36).substring(2, 10);
+        return {
+          meetingUrl: `/room/${roomId}`,
+          providerMeetingId: roomId,
+        };
+      }
       case 'GOOGLE_MEET': {
+
         const res = await this.integrationsService.createGoogleMeetEvent(organizationId, userId, details);
         return {
           meetingUrl: res.meetingUrl,
           providerEventId: res.providerEventId,
           providerMeetingId: res.providerEventId,
+          googleEventLink: res.googleEventLink,
+          isOfficialGoogleMeet: res.isOfficialGoogleMeet,
         };
       }
       case 'ZOOM': {
@@ -122,9 +150,11 @@ export class MeetingsService {
         };
       }
       case 'MICROSOFT_TEAMS': {
-        const threadId = Math.random().toString(36).substring(2, 10);
+        const res = await this.integrationsService.createMicrosoftTeamsEvent(organizationId, userId, details);
         return {
-          meetingUrl: `https://teams.microsoft.com/l/meetup-join/19%3ameeting_${threadId}%40thread.v2/0`,
+          meetingUrl: res.meetingUrl,
+          providerEventId: res.providerEventId,
+          providerMeetingId: res.providerEventId,
         };
       }
       case 'MANUAL':
@@ -146,13 +176,28 @@ export class MeetingsService {
       limit?: number;
       offset?: number;
     },
+    user?: AuthenticatedUser,
   ) {
     const limit = query?.limit ? Number(query.limit) : 50;
     const offset = query?.offset ? Number(query.offset) : 0;
 
     const whereClause: Prisma.MeetingWhereInput = {
-      organizationId,
       isActive: true,
+      ...(user?.email
+        ? {
+            OR: [
+              { organizationId },
+              { createdBy: user.userId },
+              {
+                participants: {
+                  some: {
+                    email: { equals: user.email, mode: 'insensitive' },
+                  },
+                },
+              },
+            ],
+          }
+        : { organizationId }),
       ...(query?.status && { status: query.status }),
       ...(query?.search && {
         OR: [
@@ -219,13 +264,17 @@ export class MeetingsService {
     };
   }
 
-  async findById(organizationId: string, id: string, allowInactive = false) {
-    const meeting = await this.prisma.meeting.findFirst({
+  async findById(organizationId: string, id: string, allowInactive = false, user?: AuthenticatedUser) {
+    let meeting = await this.prisma.meeting.findFirst({
       where: {
-        id,
         organizationId,
+        OR: [
+          { id },
+          { providerMeetingId: id },
+        ],
         ...(!allowInactive && { isActive: true }),
       },
+
       include: {
         creator: {
           select: { id: true, name: true, email: true },
@@ -255,8 +304,93 @@ export class MeetingsService {
       },
     });
 
+    // If not found in caller's organization, check if caller is an invited participant or if it is a joinable MEETINGOS_ROOM video call
     if (!meeting) {
-      throw new NotFoundException(`Meeting with ID ${id} not found in this organization`);
+      const candidateMeeting = await this.prisma.meeting.findFirst({
+        where: {
+          OR: [
+            { id },
+            { providerMeetingId: id },
+            { meetingUrl: { contains: id } },
+          ],
+          ...(!allowInactive && { isActive: true }),
+        },
+        include: {
+          creator: {
+            select: { id: true, name: true, email: true },
+          },
+          participants: true,
+          summaries: true,
+          topics: true,
+          decisions: true,
+          actionItems: {
+            include: {
+              assignee: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
+          risks: true,
+          openQuestions: true,
+          transcripts: {
+            include: {
+              segments: {
+                take: 100,
+                orderBy: { sequence: 'asc' },
+              },
+            },
+          },
+          documents: true,
+        },
+      });
+
+      if (candidateMeeting) {
+        const isParticipant = user && candidateMeeting.participants.some(
+          (p) => (user.email && p.email?.toLowerCase() === user.email.toLowerCase()) || (user.name && p.name === user.name)
+        );
+        const isVideoRoom = candidateMeeting.source === 'MEETINGOS_ROOM' || candidateMeeting.provider === 'MEETINGOS_ROOM';
+
+        if (isParticipant || isVideoRoom) {
+          meeting = candidateMeeting;
+        }
+      }
+    }
+
+    if (!meeting) {
+      throw new NotFoundException(`Meeting with ID ${id} not found`);
+    }
+
+    // Auto-heal: If meeting has transcripts but summary has not been generated yet, process and re-fetch
+    if ((!meeting.summaries || meeting.summaries.length === 0) && meeting.transcripts?.some((t) => t.segments.length > 0)) {
+      try {
+        await this.intelligenceService.processMeetingIntelligence(id);
+        const refreshed = await this.prisma.meeting.findFirst({
+          where: { id, organizationId },
+          include: {
+            creator: { select: { id: true, name: true, email: true } },
+            participants: true,
+            summaries: true,
+            topics: true,
+            decisions: true,
+            actionItems: {
+              include: { assignee: { select: { id: true, name: true, email: true } } },
+            },
+            risks: true,
+            openQuestions: true,
+            transcripts: {
+              include: {
+                segments: { take: 100, orderBy: { sequence: 'asc' } },
+              },
+            },
+            documents: true,
+          },
+        });
+        if (refreshed) {
+          return refreshed;
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not auto-generate intelligence in findById: ${err.message}`);
+      }
     }
 
     return meeting;

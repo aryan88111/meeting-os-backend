@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Post, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { IntelligenceService } from './intelligence.service';
 
@@ -7,10 +7,22 @@ import { IntelligenceService } from './intelligence.service';
 export class IntelligenceController {
   constructor(private readonly intelligenceService: IntelligenceService) {}
 
+  @Post('process')
+  @ApiOperation({ summary: 'Process or re-generate intelligence from meeting transcripts' })
+  async processIntelligence(@Param('id') meetingId: string) {
+    return this.intelligenceService.processMeetingIntelligence(meetingId);
+  }
+
   @Get('summary')
   @ApiOperation({ summary: 'Get meeting summary' })
   async getSummary(@Param('id') meetingId: string) {
     return this.intelligenceService.getSummary(meetingId);
+  }
+
+  @Get('topics')
+  @ApiOperation({ summary: 'Get extracted topics' })
+  async getTopics(@Param('id') meetingId: string) {
+    return this.intelligenceService.getTopics(meetingId);
   }
 
   @Get('decisions')
@@ -30,4 +42,11 @@ export class IntelligenceController {
   async getRisks(@Param('id') meetingId: string) {
     return this.intelligenceService.getRisks(meetingId);
   }
+
+  @Get('questions')
+  @ApiOperation({ summary: 'Get open questions' })
+  async getOpenQuestions(@Param('id') meetingId: string) {
+    return this.intelligenceService.getOpenQuestions(meetingId);
+  }
 }
+

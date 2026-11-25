@@ -49,12 +49,16 @@ export class MeetingsController {
     @Query('limit') limit = '50',
     @Query('offset') offset = '0',
   ) {
-    return this.meetingsService.findAll(user.organizationId, {
-      search,
-      status,
-      limit: Number(limit),
-      offset: Number(offset),
-    });
+    return this.meetingsService.findAll(
+      user.organizationId,
+      {
+        search,
+        status,
+        limit: Number(limit),
+        offset: Number(offset),
+      },
+      user,
+    );
   }
 
   @Get(':id')
@@ -63,7 +67,7 @@ export class MeetingsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
   ) {
-    return this.meetingsService.findById(user.organizationId, id);
+    return this.meetingsService.findById(user.organizationId, id, false, user);
   }
 
   @Patch(':id')

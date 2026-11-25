@@ -81,6 +81,81 @@ export class IntegrationsController {
     );
   }
 
+  @Post('google/push-meeting/:meetingId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Push an existing meeting to Google Calendar and attach a genuine Google Meet video link',
+  })
+  async pushMeetingToGoogleCalendar(
+    @Param('meetingId') meetingId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.integrationsService.pushMeetingToGoogleCalendar(
+      meetingId,
+      user.organizationId,
+      user.userId,
+    );
+  }
+
+  // ==========================================
+  // MICROSOFT TEAMS CONTROLLER ENDPOINTS
+  // ==========================================
+
+  @Get('microsoft/auth-url')
+  @ApiOperation({ summary: 'Generate Microsoft Entra / Graph OAuth 2.0 authorization URL' })
+  @ApiQuery({ name: 'redirectUri', required: false, type: String })
+  getMicrosoftAuthUrl(@Query('redirectUri') redirectUri?: string) {
+    return this.integrationsService.getMicrosoftAuthUrl(redirectUri);
+  }
+
+  @Post('microsoft/callback')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Complete Microsoft OAuth 2.0 connection and save tokens' })
+  async handleMicrosoftCallback(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: GoogleAuthCallbackDto,
+  ) {
+    return this.integrationsService.handleMicrosoftCallback(
+      user.organizationId,
+      user.userId,
+      dto.code,
+      dto.redirectUri,
+    );
+  }
+
+  @Post('microsoft/sync')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Synchronize Microsoft Calendar events and Teams meetings into MeetingOS' })
+  async syncMicrosoftCalendar(@CurrentUser() user: AuthenticatedUser) {
+    return this.integrationsService.syncMicrosoftCalendar(user.organizationId);
+  }
+
+  @Post('microsoft/sync-transcript/:meetingId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Fetch and ingest transcript from Microsoft Teams / Graph API for a specific meeting',
+  })
+  async syncMicrosoftTeamsTranscript(
+    @Param('meetingId') meetingId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.integrationsService.syncMicrosoftTeamsTranscript(
+      user.organizationId,
+      meetingId,
+    );
+  }
+
+  @Post('microsoft/scan-transcripts')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Batch scan recently ended Microsoft Teams meetings and ingest their transcripts',
+  })
+  async scanRecentMicrosoftTranscripts(@CurrentUser() user: AuthenticatedUser) {
+    return this.integrationsService.scanRecentMicrosoftTranscripts(
+      user.organizationId,
+    );
+  }
+
   @Get()
   @ApiOperation({ summary: 'List all connected workspace integrations' })
   async listIntegrations(@CurrentUser() user: AuthenticatedUser) {

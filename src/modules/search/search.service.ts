@@ -563,27 +563,76 @@ export class SearchService {
 
       answerText = lines.join('\n').trim();
     }
-    // 4. General / Recency Multi-Meeting Synthesis
+    // 4. Multi-Meeting Overview / General Synthesis
     else {
-      const latest = meetings[0];
-      relevantMeetingsMap.set(latest.id, {
-        id: latest.id,
-        title: latest.title,
-        date: latest.startTime ? new Date(latest.startTime).toLocaleDateString('en-US') : undefined,
-        summary: latest.summaries[0]?.executiveSummary,
-      });
+      const meetingsWithSummaries = meetings.filter((m) => m.summaries && m.summaries.length > 0);
+      const displayMeetings = meetingsWithSummaries.length > 0 ? meetingsWithSummaries : meetings;
 
-      const lines = ['### Executive Overview\n'];
-      if (latest.summaries.length > 0) {
-        lines.push(`In **"${latest.title}"**:\n\n${latest.summaries[0].executiveSummary}\n`);
+      for (const m of displayMeetings) {
+        relevantMeetingsMap.set(m.id, {
+          id: m.id,
+          title: m.title,
+          date: m.startTime ? new Date(m.startTime).toLocaleDateString('en-US') : undefined,
+          summary: m.summaries[0]?.executiveSummary,
+        });
       }
 
-      if (latest.topics && latest.topics.length > 0) {
-        lines.push('### Key Discussion Topics:\n');
-        for (const t of latest.topics.slice(0, 3)) {
-          lines.push(`- **${t.title}**: ${t.summary}`);
+      const lines: string[] = [];
+      lines.push('### Workspace Meetings Overview\n');
+      lines.push(`You currently have **${displayMeetings.length} meeting session${displayMeetings.length === 1 ? '' : 's'}** analyzed across your workspace. Below is a structured executive briefing of each meeting:\n`);
+
+      displayMeetings.forEach((m, idx) => {
+        const dateStr = m.startTime
+          ? new Date(m.startTime).toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : 'Recorded Session';
+        const attendeesStr =
+          m.participants && m.participants.length > 0
+            ? m.participants.map((p: any) => p.name).join(', ')
+            : 'Workspace Team';
+
+        lines.push(`---\n`);
+        lines.push(`#### ${idx + 1}. **"${m.title}"**`);
+        lines.push(`*Date: ${dateStr} | Attendees: ${attendeesStr}*\n`);
+
+        if (m.summaries && m.summaries.length > 0 && m.summaries[0].executiveSummary) {
+          lines.push(`${m.summaries[0].executiveSummary}\n`);
+        } else if (m.description) {
+          lines.push(`${m.description}\n`);
         }
-      }
+
+        // Add discussion topics if present
+        if (m.topics && m.topics.length > 0) {
+          lines.push('**Key Topics:**');
+          for (const t of m.topics.slice(0, 3)) {
+            lines.push(`- **${t.title}**: ${t.summary}`);
+          }
+          lines.push('');
+        }
+
+        // Add major decisions if present
+        if (m.decisions && m.decisions.length > 0) {
+          lines.push('**Key Decisions:**');
+          for (const d of m.decisions.slice(0, 2)) {
+            lines.push(`- ${d.decision}`);
+          }
+          lines.push('');
+        }
+
+        // Add action items if present
+        if (m.actionItems && m.actionItems.length > 0) {
+          lines.push('**Action Items:**');
+          for (const a of m.actionItems.slice(0, 2)) {
+            const assignee = a.assignee?.name || a.assigneeName || 'Unassigned';
+            lines.push(`- **${a.description}** (*Assigned to ${assignee}*)`);
+          }
+          lines.push('');
+        }
+      });
 
       answerText = lines.join('\n').trim();
     }
@@ -591,7 +640,7 @@ export class SearchService {
     return {
       answer: answerText,
       citations: citations.slice(0, 10),
-      relevantMeetings: Array.from(relevantMeetingsMap.values()).slice(0, 5),
+      relevantMeetings: Array.from(relevantMeetingsMap.values()).slice(0, 8),
     };
   }
 }
