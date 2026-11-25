@@ -5,6 +5,7 @@ import { IntelligenceService } from '../intelligence/intelligence.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { MeetingStatus, Prisma } from '@prisma/client';
+import { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 @Injectable()
 export class MeetingsService {
@@ -122,7 +123,15 @@ export class MeetingsService {
     isOfficialGoogleMeet?: boolean;
   }> {
     switch (provider) {
+      case 'MEETINGOS_ROOM': {
+        const roomId = Math.random().toString(36).substring(2, 10);
+        return {
+          meetingUrl: `/room/${roomId}`,
+          providerMeetingId: roomId,
+        };
+      }
       case 'GOOGLE_MEET': {
+
         const res = await this.integrationsService.createGoogleMeetEvent(organizationId, userId, details);
         return {
           meetingUrl: res.meetingUrl,
@@ -167,13 +176,28 @@ export class MeetingsService {
       limit?: number;
       offset?: number;
     },
+    user?: AuthenticatedUser,
   ) {
     const limit = query?.limit ? Number(query.limit) : 50;
     const offset = query?.offset ? Number(query.offset) : 0;
 
     const whereClause: Prisma.MeetingWhereInput = {
-      organizationId,
       isActive: true,
+      ...(user?.email
+        ? {
+            OR: [
+              { organizationId },
+              { createdBy: user.userId },
+              {
+                participants: {
+                  some: {
+                    email: { equals: user.email, mode: 'insensitive' },
+                  },
+                },
+              },
+            ],
+          }
+        : { organizationId }),
       ...(query?.status && { status: query.status }),
       ...(query?.search && {
         OR: [
@@ -240,13 +264,17 @@ export class MeetingsService {
     };
   }
 
-  async findById(organizationId: string, id: string, allowInactive = false) {
-    const meeting = await this.prisma.meeting.findFirst({
+  async findById(organizationId: string, id: string, allowInactive = false, user?: AuthenticatedUser) {
+    let meeting = await this.prisma.meeting.findFirst({
       where: {
-        id,
         organizationId,
+        OR: [
+          { id },
+          { providerMeetingId: id },
+        ],
         ...(!allowInactive && { isActive: true }),
       },
+
       include: {
         creator: {
           select: { id: true, name: true, email: true },
@@ -276,8 +304,60 @@ export class MeetingsService {
       },
     });
 
+    // If not found in caller's organization, check if caller is an invited participant or if it is a joinable MEETINGOS_ROOM video call
     if (!meeting) {
-      throw new NotFoundException(`Meeting with ID ${id} not found in this organization`);
+      const candidateMeeting = await this.prisma.meeting.findFirst({
+        where: {
+          OR: [
+            { id },
+            { providerMeetingId: id },
+            { meetingUrl: { contains: id } },
+          ],
+          ...(!allowInactive && { isActive: true }),
+        },
+        include: {
+          creator: {
+            select: { id: true, name: true, email: true },
+          },
+          participants: true,
+          summaries: true,
+          topics: true,
+          decisions: true,
+          actionItems: {
+            include: {
+              assignee: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
+          risks: true,
+          openQuestions: true,
+          transcripts: {
+            include: {
+              segments: {
+                take: 100,
+                orderBy: { sequence: 'asc' },
+              },
+            },
+          },
+          documents: true,
+        },
+      });
+
+      if (candidateMeeting) {
+        const isParticipant = user && candidateMeeting.participants.some(
+          (p) => (user.email && p.email?.toLowerCase() === user.email.toLowerCase()) || (user.name && p.name === user.name)
+        );
+        const isVideoRoom = candidateMeeting.source === 'MEETINGOS_ROOM' || candidateMeeting.provider === 'MEETINGOS_ROOM';
+
+        if (isParticipant || isVideoRoom) {
+          meeting = candidateMeeting;
+        }
+      }
+    }
+
+    if (!meeting) {
+      throw new NotFoundException(`Meeting with ID ${id} not found`);
     }
 
     // Auto-heal: If meeting has transcripts but summary has not been generated yet, process and re-fetch

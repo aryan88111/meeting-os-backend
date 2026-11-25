@@ -282,6 +282,134 @@
         ]
       }
     },
+    "/api/v1/integrations/microsoft/auth-url": {
+      "get": {
+        "operationId": "IntegrationsController_getMicrosoftAuthUrl",
+        "parameters": [
+          {
+            "name": "redirectUri",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate Microsoft Entra / Graph OAuth 2.0 authorization URL",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/microsoft/callback": {
+      "post": {
+        "operationId": "IntegrationsController_handleMicrosoftCallback",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleAuthCallbackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Complete Microsoft OAuth 2.0 connection and save tokens",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/microsoft/sync": {
+      "post": {
+        "operationId": "IntegrationsController_syncMicrosoftCalendar",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Synchronize Microsoft Calendar events and Teams meetings into MeetingOS",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/microsoft/sync-transcript/{meetingId}": {
+      "post": {
+        "operationId": "IntegrationsController_syncMicrosoftTeamsTranscript",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Fetch and ingest transcript from Microsoft Teams / Graph API for a specific meeting",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/microsoft/scan-transcripts": {
+      "post": {
+        "operationId": "IntegrationsController_scanRecentMicrosoftTranscripts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Batch scan recently ended Microsoft Teams meetings and ingest their transcripts",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
     "/api/v1/integrations": {
       "get": {
         "operationId": "IntegrationsController_listIntegrations",
@@ -1238,6 +1366,229 @@
           "API Keys & Developer"
         ]
       }
+    },
+    "/api/v1/video-rooms/{meetingId}/token": {
+      "post": {
+        "operationId": "VideoRoomsController_generateToken",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateRoomTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "LiveKit access token and connection credentials"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate WebRTC token for joining SFU video call room",
+        "tags": [
+          "Video Rooms (SFU)"
+        ]
+      }
+    },
+    "/api/v1/video-rooms/{meetingId}/guest-token": {
+      "post": {
+        "operationId": "VideoRoomsController_generateGuestToken",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "LiveKit guest token and connection credentials"
+          }
+        },
+        "summary": "Generate guest WebRTC token for external attendee without login",
+        "tags": [
+          "Video Rooms (SFU)"
+        ]
+      }
+    },
+    "/api/v1/video-rooms/{meetingId}/participants": {
+      "post": {
+        "operationId": "VideoRoomsController_addParticipant",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Participant added successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a participant to the meeting",
+        "tags": [
+          "Video Rooms (SFU)"
+        ]
+      }
+    },
+    "/api/v1/video-rooms/{meetingId}/status": {
+      "get": {
+        "operationId": "VideoRoomsController_getStatus",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Room status and active session info"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get current video call room status and participants",
+        "tags": [
+          "Video Rooms (SFU)"
+        ]
+      }
+    },
+    "/api/v1/video-rooms/{meetingId}/caption": {
+      "post": {
+        "operationId": "VideoRoomsController_ingestCaption",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestLiveCaptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Caption ingested and persisted"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ingest live transcript caption segment",
+        "tags": [
+          "Video Rooms (SFU)"
+        ]
+      }
+    },
+    "/api/v1/video-rooms/{meetingId}/end": {
+      "post": {
+        "operationId": "VideoRoomsController_endCall",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndCallDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Call terminated and intelligence extraction enqueued"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "End video call room and trigger post-meeting AI intelligence",
+        "tags": [
+          "Video Rooms (SFU)"
+        ]
+      }
+    },
+    "/api/v1/video-rooms/webhook": {
+      "post": {
+        "operationId": "LivekitWebhookController_handleWebhook",
+        "parameters": [
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook processed"
+          }
+        },
+        "summary": "Handle LiveKit SFU server webhook events",
+        "tags": [
+          "Video Rooms (SFU)"
+        ]
+      }
     }
   },
   "info": {
@@ -1410,7 +1761,8 @@
               "MANUAL",
               "GOOGLE_MEET",
               "MICROSOFT_TEAMS",
-              "ZOOM"
+              "ZOOM",
+              "MEETINGOS_ROOM"
             ],
             "default": "MANUAL"
           },
@@ -1480,7 +1832,8 @@
               "MANUAL",
               "GOOGLE_MEET",
               "MICROSOFT_TEAMS",
-              "ZOOM"
+              "ZOOM",
+              "MEETINGOS_ROOM"
             ],
             "default": "MANUAL"
           },
@@ -1637,6 +1990,81 @@
         "required": [
           "name"
         ]
+      },
+      "GenerateRoomTokenDto": {
+        "type": "object",
+        "properties": {
+          "participantName": {
+            "type": "string",
+            "description": "Custom participant display name",
+            "example": "Sarah Connor"
+          },
+          "canPublish": {
+            "type": "boolean",
+            "description": "Whether the participant can publish camera and microphone",
+            "default": true
+          },
+          "canPublishData": {
+            "type": "boolean",
+            "description": "Whether the participant can share their screen",
+            "default": true
+          }
+        }
+      },
+      "IngestLiveCaptionDto": {
+        "type": "object",
+        "properties": {
+          "speakerId": {
+            "type": "string",
+            "description": "Speaker participant identity or user ID",
+            "example": "usr_98a72b"
+          },
+          "speakerName": {
+            "type": "string",
+            "description": "Speaker display name",
+            "example": "Sarah Connor"
+          },
+          "text": {
+            "type": "string",
+            "description": "Transcribed text segment",
+            "example": "Let us review the Q3 roadmap deliverables."
+          },
+          "startTimeMs": {
+            "type": "number",
+            "description": "Start time offset in milliseconds from call start",
+            "example": 12400
+          },
+          "endTimeMs": {
+            "type": "number",
+            "description": "End time offset in milliseconds from call start",
+            "example": 15600
+          },
+          "isInterim": {
+            "type": "boolean",
+            "description": "Whether this is an interim (real-time stream) or final segment",
+            "default": false
+          },
+          "confidence": {
+            "type": "number",
+            "description": "Confidence score between 0.0 and 1.0",
+            "example": 0.98
+          }
+        },
+        "required": [
+          "speakerId",
+          "speakerName",
+          "text"
+        ]
+      },
+      "EndCallDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Reason for terminating the call session",
+            "example": "Meeting adjourned by host"
+          }
+        }
       }
     }
   }

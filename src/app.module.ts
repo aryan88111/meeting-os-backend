@@ -11,6 +11,7 @@ import { SearchModule } from './modules/search/search.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { VideoRoomsModule } from './modules/video-rooms/video-rooms.module';
 
 @Module({
   imports: [
@@ -29,6 +30,8 @@ import { ApiKeysModule } from './modules/api-keys/api-keys.module';
     DocumentsModule,
     SearchModule,
     ApiKeysModule,
+    VideoRoomsModule,
   ],
 })
 export class AppModule {}
+
